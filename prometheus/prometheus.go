@@ -7,17 +7,24 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"os"
 )
 
 type PrometheusSink struct {
 	mu        sync.Mutex
+	registry  *prometheus.Registry
 	gauges    map[string]prometheus.Gauge
 	summaries map[string]prometheus.Summary
 	counters  map[string]prometheus.Counter
 }
 
 func NewPrometheusSink() (*PrometheusSink, error) {
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(prometheus.NewProcessCollector(os.Getpid(), ""))
+	registry.MustRegister(prometheus.NewGoCollector())
+
 	return &PrometheusSink{
+		registry:  registry,
 		gauges:    make(map[string]prometheus.Gauge),
 		summaries: make(map[string]prometheus.Summary),
 		counters:  make(map[string]prometheus.Counter),
@@ -43,7 +50,7 @@ func (p *PrometheusSink) SetGauge(parts []string, val float32) {
 			Name: key,
 			Help: key,
 		})
-		prometheus.MustRegister(g)
+		p.registry.MustRegister(g)
 		p.gauges[key] = g
 	}
 	g.Set(float64(val))
@@ -60,7 +67,7 @@ func (p *PrometheusSink) AddSample(parts []string, val float32) {
 			Help:   key,
 			MaxAge: 10 * time.Second,
 		})
-		prometheus.MustRegister(g)
+		p.registry.MustRegister(g)
 		p.summaries[key] = g
 	}
 	g.Observe(float64(val))
@@ -82,7 +89,7 @@ func (p *PrometheusSink) IncrCounter(parts []string, val float32) {
 			Name: key,
 			Help: key,
 		})
-		prometheus.MustRegister(g)
+		p.registry.MustRegister(g)
 		p.counters[key] = g
 	}
 	g.Add(float64(val))

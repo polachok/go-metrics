@@ -8,6 +8,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"os"
+	"net/http"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type PrometheusSink struct {
@@ -93,4 +95,8 @@ func (p *PrometheusSink) IncrCounter(parts []string, val float32) {
 		p.counters[key] = g
 	}
 	g.Add(float64(val))
+}
+
+func (p *PrometheusSink) Handler() http.Handler {
+	return promhttp.HandlerFor(p.registry, promhttp.HandlerOpts{})
 }
